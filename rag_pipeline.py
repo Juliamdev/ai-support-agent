@@ -6,7 +6,8 @@ from functools import lru_cache
 from dotenv import load_dotenv
 
 # Imports para Leitura e Busca Vetorial
-from langchain_community.document_loaders import PyPDFLoader
+from pypdf import PdfReader
+from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_qdrant import QdrantVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -71,10 +72,14 @@ def normalizar_texto(texto: str) -> str:
 def indexar_pdf(pdf_path: str) -> QdrantVectorStore:
     """Lê o PDF, divide em chunks e salva no Qdrant (substitui a coleção existente)."""
     print(f"📖 Lendo o arquivo: {pdf_path}...")
-    loader = PyPDFLoader(pdf_path)
-    documentos = loader.load()
-    for doc in documentos:
-        doc.page_content = normalizar_texto(doc.page_content)
+    reader = PdfReader(pdf_path)
+    documentos = [
+        Document(
+            page_content=normalizar_texto(pagina.extract_text() or ""),
+            metadata={"source": pdf_path, "page": i},
+        )
+        for i, pagina in enumerate(reader.pages)
+    ]
 
     print("✂️ Dividindo o documento em trechos (chunks)...")
     text_splitter = RecursiveCharacterTextSplitter(
